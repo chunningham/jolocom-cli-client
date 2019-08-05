@@ -1,10 +1,11 @@
-import { Controller, create, fuel, isHardwareConnected } from './controller'
-import { JolocomLib } from 'jolocom-lib'
-import { CredentialRequest } from 'jolocom-lib/js/interactionTokens/credentialRequest'
-import { AuthCreationArgs, PaymentRequestCreationArgs } from 'jolocom-lib/js/identityWallet/types'
 import * as yargs from 'yargs'
+import fetch from 'node-fetch';
 
 const ethToWei = n => n * 1e18
+
+const getAddr = (host: string, port: number) => (host ? host :
+    'http://localhost') +
+    (port ? ':' + port.toString() : '')
 
 require('yargs')
     .scriptName('jolocom-cli')
@@ -16,66 +17,15 @@ require('yargs')
         yargs => {
             yargs.usage('Usage: $0 did [options...]')
         },
-        args =>
-            Controller({ idArgs: args.identity, dep: args.staX, offline: args.offline })
-                .then(id => {
-                    const { did, created } = id.getDidInfo()
-                    console.log(`did: ${did}`)
-                    console.log(`created: ${created.toISOString()}`)
-                })
-                .catch(err => {
-                    console.log('current identity is not anchored')
-                })
-    )
-
-    .command(
-        'fuel [amount]',
-        'fuels current identity with Eth',
-        yargs => {
-            yargs.usage('Usage: $0 fuel [amount] [options...]')
-            yargs.positional('amount', {
-                describe: '- amount of Eth to request',
-                type: 'number',
-                coerce: ethToWei,
-                default: 10
+        args => fetch(getAddr(args.host, args.port) + '/did', {
+            method: 'get',
+        })
+            .then(res => res.json())
+            .then(json => {
+                console.log('did: ' + json.did)
+                console.log('created: ' + json.date)
             })
-        },
-        args => fuel(args.amount, { idArgs: args.identity, dep: args.staX, offline: false })
     )
-
-    .command(
-        'create',
-        'registers a new identity on the ledger',
-        yargs => {
-            yargs.usage('Usage: $0 create [options...]')
-        },
-        args => create({ idArgs: args.identity, dep: args.staX, offline: false })
-    )
-
-    .command(
-        'clear',
-        'clears the local history of generated request tokens used for response validation',
-        yargs => {
-            yargs.usage('Usage: $0 clear')
-        },
-        args =>
-            Controller({ idArgs: args.identity, dep: args.staX, offline: true })
-                .then(id => {
-                    id.clearInteractions()
-                    id.close()
-                })
-                .catch(err => {
-                    console.log('current identity is not anchored')
-                })
-    )
-
-    .command(
-        'hardware',
-        'check if hardware is connected',
-        yargs => {
-            yargs.usage('Usage: $0 hardware')
-        },
-        args => console.log(isHardwareConnected() ? 'true' : 'false'))
 
     .command(
         'validate <response>',
@@ -87,17 +37,16 @@ require('yargs')
                 type: 'string'
             })
         },
-        args =>
-            Controller({ idArgs: args.identity, dep: args.staX, offline: false })
-                .then(async id => {
-                    const { validity, responder } = await id.isInteractionResponseValid(args.response)
-                    console.log('valid:', validity)
-                    console.log('did:', responder)
-                    id.close()
-                })
-                .catch(err => {
-                    console.log('current identity is not anchored')
-                })
+        args => fetch(getAddr(args.host, args.port) + '/validate', {
+            method: 'post',
+            body: JSON.stringify({}),
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(res => res.json())
+            .then(json => {
+                console.log('valid: ' + json.validity)
+                console.log('did: ' + json.respondant)
+            })
     )
 
     .command(
@@ -121,33 +70,20 @@ require('yargs')
                     default: 'scooter@dflow.demo'
                 })
         },
-        ({ name, email, credentialRequest, identity, staX, offline }) =>
-            Controller({
-                idArgs: identity,
-                dep: staX,
-                offline: offline
-            })
-                .then(async id => {
-                    const { nameCred, emailCred } = await id.createKeyCloakCredentials(name, email)
-                    const {
-                        interactionToken: { callbackURL }
-                    } = JolocomLib.parse.interactionToken.fromJWT<CredentialRequest>(credentialRequest)
-
-                    const credentialResponse = await id.generateResponse(
-                        'share',
-                        {
-                            callbackURL: callbackURL,
-                            suppliedCredentials: [nameCred, emailCred]
-                        },
-                        credentialRequest
-                    )
-                    console.log(credentialResponse)
-                    id.clearInteractions()
-                    id.close()
-                })
-                .catch(err => {
-                    console.log('current identity is not anchored')
-                })
+        args => fetch(getAddr(args.host, args.port) + '/request/keycloak', {
+            method: 'post',
+            body: JSON.stringify({
+                attrs: {
+                    callbackURL: args.callbackURL,
+                    name: args.name,
+                    email: args.email
+                },
+                request: args.request
+            }),
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(res => res.text())
+            .then(console.log)
     )
 
     .command(
@@ -169,21 +105,16 @@ require('yargs')
                         type: 'string'
                     })
                 },
-                args =>
-                    Controller({ idArgs: args.identity, dep: args.staX, offline: args.offline })
-                        .then(async id => {
-                            const attrs: AuthCreationArgs = {
-                                callbackURL: args.callbackURL
-                            }
-
-                            if (args.description) attrs.description = args.description
-
-                            console.log(await id.generateRequest('auth', attrs))
-                            id.close()
-                        })
-                        .catch(err => {
-                            console.log('current identity is not anchored')
-                        })
+                args => fetch(getAddr(args.host, args.port) + '/request/authentication', {
+                    method: 'post',
+                    body: JSON.stringify({
+                        callbackURL: args.callbackURL,
+                        description: args.description
+                    }),
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                    .then(res => res.text())
+                    .then(console.log)
             )
             yargs.command(
                 'payment <callbackURL> <description> <amount> [to]',
@@ -208,25 +139,20 @@ require('yargs')
                         type: 'string'
                     })
                 },
-                args =>
-                    Controller({ idArgs: args.identity, dep: args.staX, offline: args.offline })
-                        .then(async id => {
-                            const attrs: PaymentRequestCreationArgs = {
-                                callbackURL: args.callbackURL,
-                                description: args.description,
-                                transactionOptions: {
-                                    value: args.amount
-                                }
-                            }
-
-                            if (args.to) attrs.transactionOptions.to = args.to
-
-                            console.log(await id.generateRequest('payment', attrs))
-                            id.close()
-                        })
-                        .catch(err => {
-                            console.log('current identity is not anchored')
-                        })
+                args => fetch(getAddr(args.host, args.port) + '/request/payment', {
+                    method: 'post',
+                    body: JSON.stringify({
+                        callbackURL: args.callbackURL,
+                        description: args.description,
+                        transactionOptions: {
+                            value: args.amount,
+                            to: args.to,
+                        }
+                    }),
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                    .then(res => res.text())
+                    .then(console.log)
             )
         },
         () => { }
@@ -256,43 +182,36 @@ require('yargs')
                         type: 'string'
                     })
                 },
-                args =>
-                    Controller({ idArgs: args.identity, dep: args.staX, offline: args.offline })
-                        .then(async id => {
-                            const attrs: AuthCreationArgs = {
-                                callbackURL: args.callbackURL
-                            }
+                args => console.log(args)
+                // Controller({ idArgs: args.identity, dep: args.staX, offline: args.offline })
+                //     .then(async id => {
+                //         const attrs: AuthCreationArgs = {
+                //             callbackURL: args.callbackURL
+                //         }
 
-                            if (args.description) attrs.description = args.description
+                //         if (args.description) attrs.description = args.description
 
-                            console.log(await id.generateResponse('auth', attrs, args.request))
-                            id.close()
-                        })
-                        .catch(err => {
-                            console.log('current identity is not anchored')
-                        })
+                //         console.log(await id.generateResponse('auth', attrs, args.request))
+                //         id.close()
+                //     })
+                //     .catch(err => {
+                //         console.log('current identity is not anchored')
+                //     })
             )
         },
         () => { }
     )
 
-    .option('staX', {
-        alias: 's',
-        description: 'Use custom staX deployment instead of public registry',
-        nargs: 2,
-        coerce: ([endpoint, contract]) => ({ endpoint, contract }),
-        type: 'string'
-    })
-
-    .option('identity', {
-        alias: 'i',
-        description: 'Provide custom 32 byte seed to generate identity keys',
+    .option('host', {
+        alias: 'h',
+        description: 'Set the host for the identity server',
         type: 'string',
-        coerce: seed => ({ seed: Buffer.from(seed, 'hex'), password: 'secret' })
+        default: 'http://localhost'
     })
 
-    .option('offline', {
-        alias: 'o',
-        description: 'Run without network requests. Does not apply to fuel, create or validate',
-        type: 'boolean'
+    .option('port', {
+        alias: 'p',
+        description: 'Set the port to access for the identity server',
+        type: 'number',
+        default: 3000
     }).argv
