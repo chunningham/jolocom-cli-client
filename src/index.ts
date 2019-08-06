@@ -39,7 +39,9 @@ require('yargs')
         },
         args => fetch(getAddr(args.host, args.port) + '/validate', {
             method: 'post',
-            body: JSON.stringify({}),
+            body: JSON.stringify({
+                token: args.response
+            }),
             headers: { 'Content-Type': 'application/json' }
         })
             .then(res => res.json())
