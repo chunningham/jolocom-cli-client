@@ -9,7 +9,8 @@
   "main": "cli.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "rm -rf dist && tsc -p ."
+    "prepare": "rm -rf dist && yarn bundle",
+    "bundle": "parcel build ./src/index.ts --target node --bundle-node-modules"
   },
   "bin": {
     "jolocom-cli": "cli.js"
@@ -25,6 +26,7 @@
     "@types/node": "^11.13.2",
     "@types/node-fetch": "^2.5.0",
     "@types/yargs": "^13.0.0",
+    "parcel-bundler": "^1.12.3",
     "prettier": "^1.17.0",
     "ts-node": "^8.0.3",
     "typescript": "^3.4.3"
