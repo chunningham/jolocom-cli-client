@@ -13,7 +13,7 @@
     "bundle": "parcel build ./src/index.ts --target node --bundle-node-modules"
   },
   "bin": {
-    "jolocom-cli": "cli.js"
+    "jolocom-cli-client": "cli.js"
   },
   "author": "charles cunningham",
   "license": "ISC",
