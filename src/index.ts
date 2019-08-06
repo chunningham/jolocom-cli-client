@@ -70,7 +70,7 @@ require('yargs')
                     default: 'scooter@dflow.demo'
                 })
         },
-        args => fetch(getAddr(args.host, args.port) + '/request/keycloak', {
+        args => fetch(getAddr(args.host, args.port) + '/response/keycloak', {
             method: 'post',
             body: JSON.stringify({
                 attrs: {
@@ -182,21 +182,19 @@ require('yargs')
                         type: 'string'
                     })
                 },
-                args => console.log(args)
-                // Controller({ idArgs: args.identity, dep: args.staX, offline: args.offline })
-                //     .then(async id => {
-                //         const attrs: AuthCreationArgs = {
-                //             callbackURL: args.callbackURL
-                //         }
-
-                //         if (args.description) attrs.description = args.description
-
-                //         console.log(await id.generateResponse('auth', attrs, args.request))
-                //         id.close()
-                //     })
-                //     .catch(err => {
-                //         console.log('current identity is not anchored')
-                //     })
+                args => fetch(getAddr(args.host, args.port) + '/response/authentication', {
+                    method: 'post',
+                    body: JSON.stringify({
+                        request: args.request,
+                        attrs: {
+                            callbackURL: args.callbackURL,
+                            description: args.description
+                        }
+                    }),
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                    .then(res => res.text())
+                    .then(console.log)
             )
         },
         () => { }
