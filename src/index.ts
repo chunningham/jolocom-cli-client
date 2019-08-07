@@ -84,8 +84,8 @@ require('yargs')
             }),
             headers: { 'Content-Type': 'application/json' }
         })
-            .then(res => res.text())
-            .then(console.log)
+            .then(res => res.json())
+            .then(json => console.log(json.token))
     )
 
     .command(
@@ -115,8 +115,8 @@ require('yargs')
                     }),
                     headers: { 'Content-Type': 'application/json' }
                 })
-                    .then(res => res.text())
-                    .then(console.log)
+                    .then(res => res.json())
+                    .then(json => console.log(json.token))
             )
             yargs.command(
                 'payment <callbackURL> <description> <amount> [to]',
@@ -153,8 +153,8 @@ require('yargs')
                     }),
                     headers: { 'Content-Type': 'application/json' }
                 })
-                    .then(res => res.text())
-                    .then(console.log)
+                    .then(res => res.json())
+                    .then(json => console.log(json.token))
             )
         },
         () => { }
@@ -195,8 +195,8 @@ require('yargs')
                     }),
                     headers: { 'Content-Type': 'application/json' }
                 })
-                    .then(res => res.text())
-                    .then(console.log)
+                    .then(res => res.json())
+                    .then(json => console.log(json))
             )
         },
         () => { }
